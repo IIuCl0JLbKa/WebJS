@@ -215,13 +215,6 @@
 		});
 	}
 	
-	// Включение автообновления
-	MAutoUpdate.start();
-	Store.set('thread.utorefresh', true);
-	
 	// Отключение увеличения таймера
 	MAutoUpdate.setNewTimeout = function() {}
-	
-	// Установка громкости WebM
-	Store.set('other.webm_vol', 0.1);
 })();
