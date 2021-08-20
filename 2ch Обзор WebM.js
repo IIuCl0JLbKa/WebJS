@@ -53,9 +53,6 @@
 		}
 	}
 	
-	// Находит блок со всеми постами
-	var myThread = document.getElementById("posts-form");
-	
 	// Создает новый элемент в котором будут все файлы
 	var myEl = document.createElement("div");
 	myEl.className = "myAllMedia";					 // Название класса для удобного поиска элемента
@@ -81,8 +78,13 @@
 		";overflow:hidden" +
 		"}";
 	
+	// Находит блок со всеми постами
+	var myThread = document.getElementById("posts-form");
+	
 	// Встраивание в страницу
-	myThread.outerHTML += myStyleBlock.outerHTML + myEl.outerHTML; // Стиль и Все блоки
+	myThread.parentElement.insertBefore(myEl, myThread.nextSibling);			// Все блоки
+	myThread.parentElement.insertBefore(myStyleBlock, myThread.nextSibling);	// Стиль
+	//myThread.outerHTML += myStyleBlock.outerHTML + myEl.outerHTML; // Стиль и Все блоки
 	
 	// Функуия смены отображения (Оригинала/Блоков медиа)
 	document.switchShowMyMedia = function() {
