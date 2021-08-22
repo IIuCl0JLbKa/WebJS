@@ -13,9 +13,9 @@
     'use strict';
 	
 	// Включение автообновления
-    var bRefresh = Store.get('thread.utorefresh');
+    var bRefresh = Store.get('thread.autorefresh');
     if(bRefresh == undefined) {
-        Store.set('thread.utorefresh', true);
+        Store.set('thread.autorefresh', true);
     }
 	
 	// Выставление громкости
