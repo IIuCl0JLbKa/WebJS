@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name		 2chInitializeSettings
 // @namespace	 http://tampermonkey.net/
-// @version		 0.1
+// @version		 0.11
 // @description	 Выставление заданных настроек если они вовсе не заданы
 // @author		 IIuCl-0JLbKa
 // @match		 https://2ch.hk/*
