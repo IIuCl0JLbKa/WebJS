@@ -123,8 +123,8 @@
 		aNavigateBlock[i].appendChild(myButton);
 	}
 	
-	// Проставление флага просмотра
-	MExpandMedia.oldOpen = MExpandMedia.open;
+	// Проставление флага просмотра (Отключено в связи обновлением 2ch)
+	/*MExpandMedia.oldOpen = MExpandMedia.open;
 	
 	MExpandMedia.open = function(targetEl) {
 		
@@ -142,7 +142,7 @@
 				myBlock.setAttribute("alreadyView", true);		// Проставление флага
 			}
 		}
-	}
+	}*/
 	
 	////////////////////////////////////////////////////////////
 	// Изменение обновления
