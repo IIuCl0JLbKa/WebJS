@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name		 2chAllMediaInBlock
 // @namespace	 http://tampermonkey.net/
-// @version		 0.1
+// @version		 0.11
 // @description	 Выставляет все файлы на странице для удобного просмотра
 // @author		 IIuCl-0JLbKa
 // @match		 https://2ch.hk/*/res/*
