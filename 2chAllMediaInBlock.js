@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name		 2chAllMediaInBlock
 // @namespace	 http://tampermonkey.net/
-// @version		 0.11
+// @version		 0.12
 // @description	 Выставляет все файлы на странице для удобного просмотра
 // @author		 IIuCl-0JLbKa
 // @match		 https://2ch.hk/*/res/*
@@ -16,6 +16,29 @@
 	// Блоки медиа
 	////////////////////////////////////////////////////////////
 	
+	document.myExtensions = new Array(); // Массив с расширениями
+	document.myStyleBlock = null;		 // Элемент со стилями
+	document.switchShowMyMedia = null;	 // Функция показа/скрытия блоков медиа
+	document.switchShowMyTypes = null;	 // Функция показа/скрытия медиа по расширениям
+	
+	// @description  Функция добавления новых расширений в панель фильтра
+	// @param {Node}	elemFilter	- элемент в который добавлять новый тип
+	// @param {String}	extension	- тип который добавлять
+	function myExtensionAdd(elemFilter, extension) {
+		
+		// Создание чекбокса
+		var elemCheck = document.createElement("input");
+		elemCheck.type = "checkbox";
+		elemCheck.defaultChecked = true;
+		elemCheck.setAttribute('onclick', 'document.switchShowMyTypes("' + extension + '", this.checked)');
+		elemCheck.className = "my" + extension;
+		
+		elemFilter.appendChild(elemCheck);				// Добавление чекбокса
+		elemFilter.innerHTML += ' ' + extension + ' ';  // Добавление подписи
+		
+		// Добавление стиля, для скрытия всех медиа с данным расширением
+		document.myStyleBlock.innerText += ".my-" + extension + "{display:}";
+	}
 	// @description  Функция добавления новых файлов
 	// @param {Array<Node>}	myMediaArray - массив элементов медиа
 	// @param {Node}		myElement	 - элемент в который добавлять новый блок
@@ -34,22 +57,83 @@
 			
 			// Берём данные поста
 			var myImg = myLinkImg.children[0];				// блок <img> т.е. сама картинка
-			var myThreadNumber = 0;							// Номер треда
+			var numberThread = 0;							// Номер треда
 			try {
-				myThreadNumber = myImg.src.split("thumb/")[1].split("/")[0];
+				numberThread = myImg.src.split("thumb/")[1].split("/")[0];
 			} catch(e) {
 				console.log("Error: '" + e + "' in " + myImg.src);
 			}
-			var myPost		= myImg.dataset.md5.split("-")[0]; // Номер поста
-			var myCheckSumm = myImg.dataset.md5.split("-")[1]; // Контрольная сумма
+			// Получение расширения файла
+			if(myImg.dataset.src == null) {
+				var extension = "other";
+			} else {
+				var extension  = myImg.dataset.src.substring(myImg.dataset.src.lastIndexOf(".") + 1);
+				if(extension == myImg.dataset.src) extension = "other";
+			}
+			extension = extension.toUpperCase();
+			var numberPost = myImg.dataset.md5.split("-")[0]; // Номер поста
+			var сheckSum   = myImg.dataset.md5.split("-")[1]; // Контрольная сумма
+			
+			// Добавление нового расширения
+			if(document.myExtensions.indexOf(extension) == -1) {
+				document.myExtensions.push(extension);
+				// Поиск элемента вставки
+				var myFilter = document.getElementsByClassName("myFilter");
+				for(var i = 0; i < myFilter.length; i++) {
+					myExtensionAdd(myFilter[i], extension);
+				}
+			}
 			
 			// Добавление информации для упрощения поиска
-			myBox.setAttribute("thread", myThreadNumber);
-			myBox.setAttribute("post",	 myPost);
-			myBox.setAttribute("md5",	 myCheckSumm);
+			myBox.setAttribute("thread", numberThread);
+			myBox.setAttribute("post",	 numberPost);
+			myBox.setAttribute("md5",	 сheckSum);
+			myBox.className += " my-" + extension;	// Дополнительный класс для фильтрации по расширениям
 			
 			// Добавить в общий котёл
 			myElement.appendChild(myBox);
+		}
+	}
+	// @description  Функуия смены отображения (Оригинала/Блоков медиа)
+	document.switchShowMyMedia = function() {
+		// Поиск блока с медиа блоками
+		var myMediaElem = document.getElementsByClassName("myAllMedia")[0];
+		if(!myMediaElem) return;
+		
+		// Поиск блока со всеми постами
+		var myThread = document.getElementById("posts-form");
+		
+		var bActivate = (myMediaElem.getAttribute("activate") == "true");
+		if(bActivate) {
+			// Отображение оригинала
+			myThread.style.display = "";
+			myMediaElem.style.display = "none";
+		} else {
+			// Отображение блоков медиа
+			myThread.style.display = "none";
+			myMediaElem.style.display = "flex";
+		}
+		myMediaElem.setAttribute("activate", !bActivate);
+	}
+	// @description  Функуия смены отображения определенных типов медиа
+	// @param {String}	extension	- расширение
+	// @param {Boolean}	isActive	- отображать ли
+	document.switchShowMyTypes = function(extension, isActive) {
+		
+		var displayValue = isActive?'':'none';
+		// Поиск стиля для нужного расширения
+		var myAllStyles = document.myStyleBlock.sheet.rules;
+		for(var i = 0; i < myAllStyles.length; i++) {
+			if(myAllStyles[i].selectorText == (".my-" + extension)) {
+				// Проставление нужного значения
+				myAllStyles[i].style["display"] = displayValue;
+				break;
+			}
+		}
+		// Синхронизация чекбоксов
+		var elemChecks = document.getElementsByClassName("my" + extension);
+		for(var i = 0; i < elemChecks.length; i++) {
+			elemChecks[i].checked = isActive;
 		}
 	}
 	
@@ -77,6 +161,7 @@
 		";text-align:center" +
 		";overflow:hidden" +
 		"}";
+	myStyleBlock.id = "myStyle";
 	
 	// Находит блок со всеми постами
 	var myThread = document.getElementById("posts-form");
@@ -84,29 +169,7 @@
 	// Встраивание в страницу
 	myThread.parentElement.insertBefore(myEl, myThread.nextSibling);			// Все блоки
 	myThread.parentElement.insertBefore(myStyleBlock, myThread.nextSibling);	// Стиль
-	//myThread.outerHTML += myStyleBlock.outerHTML + myEl.outerHTML; // Стиль и Все блоки
-	
-	// Функуия смены отображения (Оригинала/Блоков медиа)
-	document.switchShowMyMedia = function() {
-		// Поиск блока с медиа блоками
-		var myMediaElem = document.getElementsByClassName("myAllMedia")[0];
-		if(!myMediaElem) return;
-		
-		// Поиск блока со всеми постами
-		var myThread = document.getElementById("posts-form");
-		
-		var bActivate = (myMediaElem.getAttribute("activate") == "true");
-		if(bActivate) {
-			// Отображение оригинала
-			myThread.style.display = "";
-			myMediaElem.style.display = "none";
-		} else {
-			// Отображение блоков медиа
-			myThread.style.display = "none";
-			myMediaElem.style.display = "flex";
-		}
-		myMediaElem.setAttribute("activate", !bActivate);
-	}
+	document.myStyleBlock = myStyleBlock;
 	
 	// Поиск панели навигации
 	var aNavigateBlock = document.getElementsByClassName("thread-nav__stats");
@@ -118,9 +181,17 @@
 		myButton.setAttribute('onclick', "document.switchShowMyMedia()");
 		myButton.className = "mediaButton";
 		myButton.innerHTML = "Блоки медиа";
+		// Блок с чекбоксами
+		var myFilter = document.createElement("span");
+		myFilter.className = "myFilter";
+		myFilter.style["display"] = "inline-block";
+		for(var j = 0; j < document.myExtensions.length; j++) {
+			myExtensionAdd(myFilter, document.myExtensions[j]);
+		}
 		
 		// Добавление в панель кнопки
 		aNavigateBlock[i].appendChild(myButton);
+		aNavigateBlock[i].appendChild(myFilter);
 	}
 	
 	// Проставление флага просмотра (Отключено в связи обновлением 2ch)
