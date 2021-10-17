@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name		 2chAllMediaInBlock
 // @namespace	 http://tampermonkey.net/
-// @version		 0.12
+// @version		 0.13
 // @description	 Выставляет все файлы на странице для удобного просмотра
 // @author		 IIuCl-0JLbKa
 // @match		 https://2ch.hk/*/res/*
@@ -20,21 +20,44 @@
 	document.myStyleBlock = null;		 // Элемент со стилями
 	document.switchShowMyMedia = null;	 // Функция показа/скрытия блоков медиа
 	document.switchShowMyTypes = null;	 // Функция показа/скрытия медиа по расширениям
+	document.switchShowDuplicates = null;// Функция показа/скрытия дублей медиа // TODO Сделать!!
 	
-	// @description  Функция добавления новых расширений в панель фильтра
+	var md5List = new Array();			 // Массив с контрольными суммами всех медиа
+	
+	// @description  Функция добавления новых пунктов в панель фильтра
 	// @param {Node}	elemFilter	- элемент в который добавлять новый тип
-	// @param {String}	extension	- тип который добавлять
-	function myExtensionAdd(elemFilter, extension) {
+	// @param {String}	funcExecut	- функция которую выполнять
+	// @param {String}	className	- название класса для чекбокса
+	// @param {String}	name		- отображаемое на панели название
+	function myAddToFilter(elemFilter, funcExecut, className, name) {
 		
 		// Создание чекбокса
 		var elemCheck = document.createElement("input");
 		elemCheck.type = "checkbox";
 		elemCheck.defaultChecked = true;
-		elemCheck.setAttribute('onclick', 'document.switchShowMyTypes("' + extension + '", this.checked)');
-		elemCheck.className = "my" + extension;
+		elemCheck.setAttribute('onclick', funcExecut);
+		elemCheck.className = className;
 		
-		elemFilter.appendChild(elemCheck);				// Добавление чекбокса
-		elemFilter.innerHTML += ' ' + extension + ' ';  // Добавление подписи
+		elemFilter.appendChild(elemCheck);			// Добавление чекбокса
+		elemFilter.innerHTML += ' ' + name + ' ';	// Добавление подписи
+	}
+	// @description  Функция добавления новых расширений в панель фильтра
+	// @param {String}	extension	- тип который добавлять
+	// @param {Node}	elemFilter	- элемент в который добавлять новый тип
+	function myExtensionAdd(extension, elemFilter) {
+		
+		if(elemFilter) {
+			var elemFilter = [elemFilter];
+		} else {
+			// Поиск элемента вставки
+			var elemFilter = document.getElementsByClassName("myFilter");
+		}
+		for(var i = 0; i < elemFilter.length; i++) {
+			myAddToFilter(elemFilter[i],
+				'document.switchShowMyTypes("' + extension + '", this.checked)',
+				"my" + extension,
+				extension);
+		}
 		
 		// Добавление стиля, для скрытия всех медиа с данным расширением
 		document.myStyleBlock.innerText += ".my-" + extension + "{display:}";
@@ -42,7 +65,8 @@
 	// @description  Функция добавления новых файлов
 	// @param {Array<Node>}	myMediaArray - массив элементов медиа
 	// @param {Node}		myElement	 - элемент в который добавлять новый блок
-	function myMediaAdd(myMediaArray, myElement) {
+	// @param {Boolean}		isSetup	 	 - это начальная настройка?
+	function myMediaAdd(myMediaArray, myElement, isSetup) {
 		// Проходимся по всем медиа
 		for(var i = 0; i < myMediaArray.length; i++) {
 			
@@ -77,10 +101,8 @@
 			// Добавление нового расширения
 			if(document.myExtensions.indexOf(extension) == -1) {
 				document.myExtensions.push(extension);
-				// Поиск элемента вставки
-				var myFilter = document.getElementsByClassName("myFilter");
-				for(var i = 0; i < myFilter.length; i++) {
-					myExtensionAdd(myFilter[i], extension);
+				if(!isSetup) {
+					myExtensionAdd(extension);
 				}
 			}
 			
@@ -89,6 +111,13 @@
 			myBox.setAttribute("post",	 numberPost);
 			myBox.setAttribute("md5",	 сheckSum);
 			myBox.className += " my-" + extension;	// Дополнительный класс для фильтрации по расширениям
+			
+			// Проверка дубликатов
+			if(md5List.indexOf(сheckSum) >= 0) {
+				myBox.className += " myDuplicate";
+			} else {
+				md5List.push(сheckSum);
+			}
 			
 			// Добавить в общий котёл
 			myElement.appendChild(myBox);
@@ -136,6 +165,40 @@
 			elemChecks[i].checked = isActive;
 		}
 	}
+	// @description  Функуия смены отображения дубликатов медиа
+	// @param {Boolean}	isActive	- отображать ли
+	document.switchShowDuplicates = function(isActive) {
+		
+		var displayValue = isActive?'':'none';
+		// Поиск стиля для дубликатов
+		var myAllStyles = document.myStyleBlock.sheet.rules;
+		for(var i = 0; i < myAllStyles.length; i++) {
+			if(myAllStyles[i].selectorText == (".myDuplicate")) {
+				// Проставление нужного значения
+				myAllStyles[i].style["display"] = displayValue;
+				break;
+			}
+		}
+		// Синхронизация чекбоксов
+		var elemChecks = document.getElementsByClassName("myCheckDuplicate");
+		for(var i = 0; i < elemChecks.length; i++) {
+			elemChecks[i].checked = isActive;
+		}
+	}
+	
+	// Стиль каждого блока с файлом
+	var myStyleBlock = document.createElement("style");
+	myStyleBlock.innerHTML =
+		".myFile{" +
+		"background-color:lightgray" +
+		";border-radius:4px" +
+		";margin:5px" +
+		";padding:10px" +
+		";text-align:center" +
+		";overflow:hidden" +
+		"}";
+	myStyleBlock.id = "myStyle";
+	document.myStyleBlock = myStyleBlock;
 	
 	// Создает новый элемент в котором будут все файлы
 	var myEl = document.createElement("div");
@@ -150,26 +213,12 @@
 	// Добавление их в новый элемент
 	myMediaAdd(myAllMedia, myEl);
 	
-	// Стиль каждого блока с файлом
-	var myStyleBlock = document.createElement("style");
-	myStyleBlock.innerHTML =
-		".myFile{" +
-		"background-color:lightgray" +
-		";border-radius:4px" +
-		";margin:5px" +
-		";padding:10px" +
-		";text-align:center" +
-		";overflow:hidden" +
-		"}";
-	myStyleBlock.id = "myStyle";
-	
 	// Находит блок со всеми постами
 	var myThread = document.getElementById("posts-form");
 	
 	// Встраивание в страницу
 	myThread.parentElement.insertBefore(myEl, myThread.nextSibling);			// Все блоки
 	myThread.parentElement.insertBefore(myStyleBlock, myThread.nextSibling);	// Стиль
-	document.myStyleBlock = myStyleBlock;
 	
 	// Поиск панели навигации
 	var aNavigateBlock = document.getElementsByClassName("thread-nav__stats");
@@ -185,13 +234,22 @@
 		var myFilter = document.createElement("span");
 		myFilter.className = "myFilter";
 		myFilter.style["display"] = "inline-block";
-		for(var j = 0; j < document.myExtensions.length; j++) {
-			myExtensionAdd(myFilter, document.myExtensions[j]);
-		}
+		
+		// Добавление фильтра дубликатов
+		myAddToFilter(myFilter,
+					'document.switchShowDuplicates(this.checked)',
+					"myCheckDuplicate",
+					"Дубликаты");
 		
 		// Добавление в панель кнопки
 		aNavigateBlock[i].appendChild(myButton);
 		aNavigateBlock[i].appendChild(myFilter);
+	}
+	// Добавление стиля для дублей
+	document.myStyleBlock.innerText += ".myDuplicate{display:}";
+	// Добавление всех расширений при настройке
+	for(var i = 0; i < document.myExtensions.length; i++) {
+		myExtensionAdd(document.myExtensions[i]);
 	}
 	
 	// Проставление флага просмотра (Отключено в связи обновлением 2ch)
